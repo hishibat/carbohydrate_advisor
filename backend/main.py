@@ -12,9 +12,15 @@ app = FastAPI(
 settings = get_settings()
 
 # CORS設定
+# Vercel preview URLsに対応するため、allow_origin_regexを使用
+cors_origins = [settings.frontend_url, "http://localhost:3000"]
+# 空文字列やNoneを除外
+cors_origins = [origin for origin in cors_origins if origin]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000"],
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
