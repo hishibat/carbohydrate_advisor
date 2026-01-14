@@ -1,7 +1,13 @@
+import os
+import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
 from services import NutritionAnalyzer, NutritionData
+
+# ロギング設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="糖質管理アドバイザー API",
@@ -10,6 +16,11 @@ app = FastAPI(
 )
 
 settings = get_settings()
+
+# 起動時の設定確認ログ
+logger.info(f"=== アプリケーション起動 ===")
+logger.info(f"GEMINI_API_KEY 設定状況: {'設定済み' if settings.gemini_api_key else '未設定'}")
+logger.info(f"FRONTEND_URL: {settings.frontend_url}")
 
 # CORS設定
 # Vercel preview URLsに対応するため、allow_origin_regexを使用
@@ -33,6 +44,21 @@ async def root():
     return {"status": "healthy", "message": "糖質管理アドバイザー API"}
 
 
+@app.get("/api/debug/env")
+async def debug_env():
+    """
+    環境変数の設定状況を確認（デバッグ用）
+    本番環境では無効化することを推奨
+    """
+    return {
+        "gemini_api_key_set": bool(settings.gemini_api_key),
+        "gemini_api_key_length": len(settings.gemini_api_key) if settings.gemini_api_key else 0,
+        "gemini_api_key_from_env": bool(os.environ.get("GEMINI_API_KEY")),
+        "frontend_url": settings.frontend_url,
+        "frontend_url_from_env": os.environ.get("FRONTEND_URL", "(未設定)"),
+    }
+
+
 @app.post("/api/analyze", response_model=NutritionData)
 async def analyze_meal(file: UploadFile = File(...)):
     """
@@ -41,9 +67,11 @@ async def analyze_meal(file: UploadFile = File(...)):
     - **file**: 食事の画像ファイル（JPEG, PNG）
     """
     if not settings.gemini_api_key:
+        logger.error("GEMINI_API_KEY が設定されていません")
+        logger.error(f"環境変数 GEMINI_API_KEY の値: {os.environ.get('GEMINI_API_KEY', '(未設定)')}")
         raise HTTPException(
             status_code=500,
-            detail="Gemini API Keyが設定されていません"
+            detail="Gemini API Keyが設定されていません。Railwayの環境変数 'GEMINI_API_KEY' を確認してください。"
         )
 
     if not file.content_type or not file.content_type.startswith("image/"):
