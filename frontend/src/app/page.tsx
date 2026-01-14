@@ -7,6 +7,9 @@ import SaveMealForm from '@/components/SaveMealForm'
 import { NutritionData, NutritionStandards } from '@/types/nutrition'
 import { useAuth } from '@/contexts/AuthContext'
 
+// デバッグ用: 環境変数の確認
+console.log("Current API URL:", process.env.NEXT_PUBLIC_API_URL);
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function Home() {
