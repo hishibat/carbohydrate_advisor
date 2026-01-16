@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import ImageUploader from '@/components/ImageUploader'
 import NutritionResult from '@/components/NutritionResult'
 import SaveMealForm from '@/components/SaveMealForm'
+import FoodDetectionOverlay from '@/components/FoodDetectionOverlay'
 import { NutritionData, NutritionStandards } from '@/types/nutrition'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -19,6 +20,7 @@ export default function Home() {
   const [nutrition, setNutrition] = useState<NutritionData | null>(null)
   const [standards, setStandards] = useState<NutritionStandards | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
   // 基準値を取得
@@ -34,6 +36,10 @@ export default function Home() {
     setError(null)
     setSaved(false)
     setUploadedFile(file)
+
+    // 画像プレビューURLを作成
+    const previewUrl = URL.createObjectURL(file)
+    setImagePreviewUrl(previewUrl)
 
     const formData = new FormData()
     formData.append('file', file)
@@ -64,8 +70,13 @@ export default function Home() {
   }
 
   const handleNewAnalysis = () => {
+    // 画像プレビューURLをクリーンアップ
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl)
+    }
     setNutrition(null)
     setUploadedFile(null)
+    setImagePreviewUrl(null)
     setSaved(false)
   }
 
@@ -140,6 +151,19 @@ export default function Home() {
                 別の食事を分析する
               </button>
             </div>
+          )}
+
+          {/* 食品検出オーバーレイ */}
+          {imagePreviewUrl && nutrition.detected_foods && (
+            <section className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                食品検出結果
+              </h3>
+              <FoodDetectionOverlay
+                imageUrl={imagePreviewUrl}
+                detectedFoods={nutrition.detected_foods}
+              />
+            </section>
           )}
 
           <section>

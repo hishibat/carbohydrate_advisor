@@ -1,5 +1,20 @@
+export interface BoundingBox {
+  x: number;      // 左上X座標 (0-1)
+  y: number;      // 左上Y座標 (0-1)
+  width: number;  // 幅 (0-1)
+  height: number; // 高さ (0-1)
+}
+
+export interface DetectedFood {
+  name: string;                    // 食品名
+  category: 'carbs' | 'protein' | 'vegetable' | 'soup' | 'other';  // カテゴリ
+  carbs: number;                   // 糖質量 (g)
+  bounding_box?: BoundingBox;      // バウンディングボックス座標
+}
+
 export interface NutritionData {
   food_items: string[];
+  detected_foods: DetectedFood[];  // 検出された食品の詳細情報
   calories: number;
   carbs: number;
   protein: number;
