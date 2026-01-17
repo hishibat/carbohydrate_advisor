@@ -3,8 +3,13 @@ from PIL import Image, ImageOps
 import io
 import json
 import re
+import logging
 from typing import Optional
 from pydantic import BaseModel
+
+# デバッグ用ロガー設定
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class BoundingBox(BaseModel):
@@ -55,11 +60,23 @@ class NutritionAnalyzer:
             NutritionData: 分析結果
         """
         image = Image.open(io.BytesIO(image_data))
+        logger.debug(f"Original image size: {image.size}, mode: {image.mode}")
 
         # EXIF情報に基づいて画像を正しい向きに回転
         # スマホ撮影画像はEXIFに回転情報が含まれており、
         # これを物理的に適用しないとGeminiの座標とブラウザ表示がズレる
         image = ImageOps.exif_transpose(image)
+        logger.debug(f"After EXIF transpose: {image.size}, mode: {image.mode}")
+
+        # EXIF情報を完全に除去した新しい画像を作成
+        # これにより、Geminiは物理的に正しい向きの画像のみを認識する
+        clean_buffer = io.BytesIO()
+        if image.mode in ('RGBA', 'P'):
+            image = image.convert('RGB')
+        image.save(clean_buffer, format='JPEG', quality=95)
+        clean_buffer.seek(0)
+        clean_image = Image.open(clean_buffer)
+        logger.debug(f"Clean image (EXIF stripped): {clean_image.size}, mode: {clean_image.mode}")
 
         prompt = """
 あなたは栄養士のAIアシスタントです。この食事画像を分析して、以下の情報をJSON形式で返してください。
@@ -114,7 +131,9 @@ detected_foodsの説明:
 画像に食事が写っていない場合は、food_itemsとdetected_foodsを空配列にして、adviceに「食事の画像をアップロードしてください」と記載してください。
 """
 
-        response = self.model.generate_content([prompt, image])
+        # クリーンな画像（EXIF除去済み）をGeminiに送信
+        response = self.model.generate_content([prompt, clean_image])
+        logger.debug(f"Gemini raw response: {response.text[:500]}...")
 
         return self._parse_response(response.text)
 
@@ -144,11 +163,13 @@ detected_foodsの説明:
         for food_data in data.get("detected_foods", []):
             bbox_data = food_data.get("bounding_box")
             bbox = None
+            food_name = food_data.get("name", "unknown")
             if bbox_data:
                 # Gemini APIの座標形式 [ymin, xmin, ymax, xmax] (0-1000) を
                 # x, y, width, height (0-1) に変換
                 if isinstance(bbox_data, list) and len(bbox_data) == 4:
                     ymin, xmin, ymax, xmax = bbox_data
+                    logger.debug(f"[{food_name}] Raw bbox from Gemini: [ymin={ymin}, xmin={xmin}, ymax={ymax}, xmax={xmax}]")
                     # 0-1000 から 0-1 に正規化し、x/y/width/height に変換
                     bbox = BoundingBox(
                         x=float(xmin) / 1000.0,
@@ -156,6 +177,7 @@ detected_foodsの説明:
                         width=(float(xmax) - float(xmin)) / 1000.0,
                         height=(float(ymax) - float(ymin)) / 1000.0
                     )
+                    logger.debug(f"[{food_name}] Converted bbox: x={bbox.x:.3f}, y={bbox.y:.3f}, w={bbox.width:.3f}, h={bbox.height:.3f}")
                 elif isinstance(bbox_data, dict):
                     # 旧形式（辞書形式）にも対応（後方互換性）
                     bbox = BoundingBox(

@@ -53,9 +53,12 @@ export default function FoodDetectionOverlay({ imageUrl, detectedFoods }: Props)
   // 画像読み込み完了時に実際の描画サイズを取得
   const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget
-    // getBoundingClientRect() で実際にブラウザに描画された画像のサイズを取得
-    const rect = img.getBoundingClientRect()
-    setImageSize({ width: rect.width, height: rect.height })
+    // clientWidth/clientHeight で実際にブラウザに描画された画像のサイズを取得
+    // getBoundingClientRect() より信頼性が高く、スクロールやズームの影響を受けない
+    const width = img.clientWidth
+    const height = img.clientHeight
+    console.log(`[FoodDetectionOverlay] Image loaded: clientWidth=${width}, clientHeight=${height}, naturalWidth=${img.naturalWidth}, naturalHeight=${img.naturalHeight}`)
+    setImageSize({ width, height })
   }, [])
 
   // バウンディングボックス付きの食品のみフィルタリング
@@ -93,6 +96,9 @@ export default function FoodDetectionOverlay({ imageUrl, detectedFoods }: Props)
               const top = box.y * imageSize.height
               const width = box.width * imageSize.width
               const height = box.height * imageSize.height
+
+              // デバッグログ: 座標変換を確認
+              console.log(`[FoodDetectionOverlay] ${food.name}: normalized(x=${box.x.toFixed(3)}, y=${box.y.toFixed(3)}, w=${box.width.toFixed(3)}, h=${box.height.toFixed(3)}) -> pixels(left=${left.toFixed(1)}, top=${top.toFixed(1)}, width=${width.toFixed(1)}, height=${height.toFixed(1)})`)
 
               // ラベル位置: 上端に近い場合は内側に表示
               const labelOnTop = box.y > 0.08
