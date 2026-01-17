@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { DetectedFood } from '@/types/nutrition'
 
 interface Props {
@@ -47,25 +47,15 @@ const categoryLabels: Record<string, string> = {
 }
 
 export default function FoodDetectionOverlay({ imageUrl, detectedFoods }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
+  const imgRef = useRef<HTMLImageElement>(null)
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
 
-  // 画像読み込み後にコンテナサイズを取得
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setImageDimensions({ width: rect.width, height: rect.height })
-      }
-    }
-
-    // ResizeObserverでコンテナサイズの変更を監視
-    const resizeObserver = new ResizeObserver(updateDimensions)
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
-    }
-
-    return () => resizeObserver.disconnect()
+  // 画像読み込み完了時に実際の描画サイズを取得
+  const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget
+    // getBoundingClientRect() で実際にブラウザに描画された画像のサイズを取得
+    const rect = img.getBoundingClientRect()
+    setImageSize({ width: rect.width, height: rect.height })
   }, [])
 
   // バウンディングボックス付きの食品のみフィルタリング
@@ -73,62 +63,66 @@ export default function FoodDetectionOverlay({ imageUrl, detectedFoods }: Props)
 
   return (
     <div className="space-y-4">
-      {/* 画像とオーバーレイ */}
-      <div
-        ref={containerRef}
-        className="relative w-full rounded-lg overflow-hidden shadow-lg"
-      >
+      {/* 画像とオーバーレイのコンテナ */}
+      <div className="relative inline-block w-full">
         {/* 食事画像 */}
         <img
+          ref={imgRef}
           src={imageUrl}
           alt="分析した食事"
-          className="w-full h-auto"
-          onLoad={() => {
-            if (containerRef.current) {
-              const rect = containerRef.current.getBoundingClientRect()
-              setImageDimensions({ width: rect.width, height: rect.height })
-            }
-          }}
+          className="w-full h-auto rounded-lg shadow-lg"
+          onLoad={handleImageLoad}
         />
 
-        {/* バウンディングボックスオーバーレイ */}
-        {imageDimensions.width > 0 && foodsWithBoxes.map((food, index) => {
-          const box = food.bounding_box!
-          const colors = categoryColors[food.category] || categoryColors.other
+        {/* オーバーレイコンテナ: 画像と完全に同じサイズで重ねる */}
+        {imageSize.width > 0 && (
+          <div
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              width: `${imageSize.width}px`,
+              height: `${imageSize.height}px`,
+            }}
+          >
+            {/* バウンディングボックス */}
+            {foodsWithBoxes.map((food, index) => {
+              const box = food.bounding_box!
+              const colors = categoryColors[food.category] || categoryColors.other
 
-          // 正規化座標（0-1）をパーセンテージに変換
-          const left = box.x * 100
-          const top = box.y * 100
-          const width = box.width * 100
-          const height = box.height * 100
+              // 正規化座標（0-1）をピクセル値に変換
+              const left = box.x * imageSize.width
+              const top = box.y * imageSize.height
+              const width = box.width * imageSize.width
+              const height = box.height * imageSize.height
 
-          // ラベル位置: 上端に近い場合は内側に表示
-          const labelOnTop = top > 8
+              // ラベル位置: 上端に近い場合は内側に表示
+              const labelOnTop = box.y > 0.08
 
-          return (
-            <div
-              key={index}
-              className={`absolute border-2 ${colors.border} pointer-events-none`}
-              style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                width: `${width}%`,
-                height: `${height}%`,
-              }}
-            >
-              {/* ラベル */}
-              <div
-                className={`absolute ${labelOnTop ? '-top-6' : 'top-0'} left-0 px-2 py-0.5 ${colors.bg} ${colors.text} text-xs font-medium whitespace-nowrap`}
-                style={{
-                  fontSize: '10px',
-                  borderRadius: labelOnTop ? '4px 4px 0 0' : '0 0 4px 4px'
-                }}
-              >
-                {food.name}: ~{food.carbs.toFixed(1)}g
-              </div>
-            </div>
-          )
-        })}
+              return (
+                <div
+                  key={index}
+                  className={`absolute border-2 ${colors.border}`}
+                  style={{
+                    left: `${left}px`,
+                    top: `${top}px`,
+                    width: `${width}px`,
+                    height: `${height}px`,
+                  }}
+                >
+                  {/* ラベル */}
+                  <div
+                    className={`absolute ${labelOnTop ? '-top-6' : 'top-0'} left-0 px-2 py-0.5 ${colors.bg} ${colors.text} text-xs font-medium whitespace-nowrap`}
+                    style={{
+                      fontSize: '10px',
+                      borderRadius: labelOnTop ? '4px 4px 0 0' : '0 0 4px 4px'
+                    }}
+                  >
+                    {food.name}: ~{food.carbs.toFixed(1)}g
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* 凡例 */}

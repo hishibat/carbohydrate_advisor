@@ -1,5 +1,5 @@
 import google.generativeai as genai
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import json
 import re
@@ -55,6 +55,11 @@ class NutritionAnalyzer:
             NutritionData: 分析結果
         """
         image = Image.open(io.BytesIO(image_data))
+
+        # EXIF情報に基づいて画像を正しい向きに回転
+        # スマホ撮影画像はEXIFに回転情報が含まれており、
+        # これを物理的に適用しないとGeminiの座標とブラウザ表示がズレる
+        image = ImageOps.exif_transpose(image)
 
         prompt = """
 あなたは栄養士のAIアシスタントです。この食事画像を分析して、以下の情報をJSON形式で返してください。
