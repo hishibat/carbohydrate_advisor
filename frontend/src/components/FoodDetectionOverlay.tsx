@@ -96,11 +96,14 @@ export default function FoodDetectionOverlay({ imageUrl, detectedFoods }: Props)
           const box = food.bounding_box!
           const colors = categoryColors[food.category] || categoryColors.other
 
-          // 正規化座標をピクセル座標に変換
+          // 正規化座標（0-1）をパーセンテージに変換
           const left = box.x * 100
           const top = box.y * 100
           const width = box.width * 100
           const height = box.height * 100
+
+          // ラベル位置: 上端に近い場合は内側に表示
+          const labelOnTop = top > 8
 
           return (
             <div
@@ -115,8 +118,11 @@ export default function FoodDetectionOverlay({ imageUrl, detectedFoods }: Props)
             >
               {/* ラベル */}
               <div
-                className={`absolute -top-6 left-0 px-2 py-0.5 ${colors.bg} ${colors.text} text-xs font-medium rounded-t whitespace-nowrap`}
-                style={{ fontSize: '10px' }}
+                className={`absolute ${labelOnTop ? '-top-6' : 'top-0'} left-0 px-2 py-0.5 ${colors.bg} ${colors.text} text-xs font-medium whitespace-nowrap`}
+                style={{
+                  fontSize: '10px',
+                  borderRadius: labelOnTop ? '4px 4px 0 0' : '0 0 4px 4px'
+                }}
               >
                 {food.name}: ~{food.carbs.toFixed(1)}g
               </div>

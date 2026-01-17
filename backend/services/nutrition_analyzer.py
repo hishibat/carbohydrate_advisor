@@ -67,12 +67,7 @@ class NutritionAnalyzer:
             "name": "食品名（日本語）",
             "category": "carbs|protein|vegetable|soup|other",
             "carbs": 糖質量(g),
-            "bounding_box": {
-                "x": 0.0-1.0,
-                "y": 0.0-1.0,
-                "width": 0.0-1.0,
-                "height": 0.0-1.0
-            }
+            "bounding_box": [ymin, xmin, ymax, xmax]
         }
     ],
     "calories": 数値,
@@ -94,11 +89,12 @@ detected_foodsの説明:
   - "soup": 汁物（味噌汁、スープなど）
   - "other": その他
 - carbs: この食品単体の推定糖質量（g）
-- bounding_box: 画像内での食品の位置（正規化座標0.0〜1.0）
-  - x: 左上のX座標（画像の左端が0、右端が1）
-  - y: 左上のY座標（画像の上端が0、下端が1）
-  - width: 幅（画像幅に対する割合）
-  - height: 高さ（画像高さに対する割合）
+- bounding_box: 画像内での食品の位置を [ymin, xmin, ymax, xmax] の配列で指定
+  - 各値は 0〜1000 の整数値（画像の端が0、反対の端が1000）
+  - ymin: 上端からの距離（0=上端、1000=下端）
+  - xmin: 左端からの距離（0=左端、1000=右端）
+  - ymax: 上端からの距離（ymin より大きい値）
+  - xmax: 左端からの距離（xmin より大きい値）
 
 注意事項:
 - calories: 推定総カロリー（kcal）
@@ -144,12 +140,25 @@ detected_foodsの説明:
             bbox_data = food_data.get("bounding_box")
             bbox = None
             if bbox_data:
-                bbox = BoundingBox(
-                    x=float(bbox_data.get("x", 0)),
-                    y=float(bbox_data.get("y", 0)),
-                    width=float(bbox_data.get("width", 0)),
-                    height=float(bbox_data.get("height", 0))
-                )
+                # Gemini APIの座標形式 [ymin, xmin, ymax, xmax] (0-1000) を
+                # x, y, width, height (0-1) に変換
+                if isinstance(bbox_data, list) and len(bbox_data) == 4:
+                    ymin, xmin, ymax, xmax = bbox_data
+                    # 0-1000 から 0-1 に正規化し、x/y/width/height に変換
+                    bbox = BoundingBox(
+                        x=float(xmin) / 1000.0,
+                        y=float(ymin) / 1000.0,
+                        width=(float(xmax) - float(xmin)) / 1000.0,
+                        height=(float(ymax) - float(ymin)) / 1000.0
+                    )
+                elif isinstance(bbox_data, dict):
+                    # 旧形式（辞書形式）にも対応（後方互換性）
+                    bbox = BoundingBox(
+                        x=float(bbox_data.get("x", 0)),
+                        y=float(bbox_data.get("y", 0)),
+                        width=float(bbox_data.get("width", 0)),
+                        height=float(bbox_data.get("height", 0))
+                    )
             detected_foods.append(DetectedFood(
                 name=food_data.get("name", ""),
                 category=food_data.get("category", "other"),
