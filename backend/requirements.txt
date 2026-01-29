@@ -1,7 +1,14 @@
+# Requirements for carbohydrate_advisor backend
+# Updated: 2026-01-29 - Migrated to google-genai SDK
+
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 python-multipart==0.0.9
-google-genai>=1.60.0
+
+# IMPORTANT: google-generativeai is EOL (Aug 2025)
+# Use google-genai instead for Gemini 2.5+ models
+google-genai==1.60.0
+
 pydantic==2.9.0
 pydantic-settings==2.5.0
 python-dotenv==1.0.1
