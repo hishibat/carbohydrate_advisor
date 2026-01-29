@@ -1,20 +1,20 @@
 # Requirements for carbohydrate_advisor backend
 # Updated: 2026-01-29 - Migrated to google-genai SDK
 
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-python-multipart==0.0.9
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
 
 # IMPORTANT: google-generativeai is EOL (Aug 2025)
 # Use google-genai instead for Gemini 2.5+ models
-google-genai==1.60.0
+google-genai>=1.60.0
 
-pydantic==2.9.0
-pydantic-settings==2.5.0
-python-dotenv==1.0.1
-Pillow==10.4.0
+pydantic>=2.9.0
+pydantic-settings>=2.5.0
+python-dotenv>=1.0.1
+Pillow>=10.4.0
 
 # Updated from 2.10.0 to fix httpx dependency conflict with google-genai
 supabase>=2.27.0
 
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]>=3.3.0
