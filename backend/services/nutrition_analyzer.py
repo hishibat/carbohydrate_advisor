@@ -47,7 +47,8 @@ class NutritionAnalyzer:
 
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        # gemini-1.5-flash: 高速で画像認識に対応した安定版モデル
+        self.model = genai.GenerativeModel("gemini-1.5-flash")
 
     async def analyze_image(self, image_data: bytes) -> NutritionData:
         """
