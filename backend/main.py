@@ -1,7 +1,9 @@
 import os
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import traceback
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from config import get_settings
 from services import NutritionAnalyzer, NutritionData
 
@@ -36,6 +38,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# グローバル例外ハンドラー: 500エラー時にもCORSヘッダーを返す
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    すべての例外をキャッチし、CORSヘッダー付きでエラーレスポンスを返す
+    """
+    logger.error(f"Unhandled exception: {exc}")
+    logger.error(traceback.format_exc())
+
+    # リクエストのOriginを取得
+    origin = request.headers.get("origin", "")
+
+    # CORSヘッダーを設定
+    headers = {}
+    if origin:
+        # Vercelドメインまたは許可されたオリジンの場合
+        if origin in cors_origins or origin.endswith(".vercel.app"):
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"サーバーエラーが発生しました: {str(exc)}"},
+        headers=headers
+    )
 
 
 @app.get("/")
@@ -88,10 +117,17 @@ async def analyze_meal(file: UploadFile = File(...)):
             detail="ファイルサイズは10MB以下にしてください"
         )
 
-    analyzer = NutritionAnalyzer(settings.gemini_api_key)
-    result = await analyzer.analyze_image(image_data)
-
-    return result
+    try:
+        analyzer = NutritionAnalyzer(settings.gemini_api_key)
+        result = await analyzer.analyze_image(image_data)
+        return result
+    except Exception as e:
+        logger.error(f"画像分析エラー: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"画像の分析中にエラーが発生しました: {str(e)}"
+        )
 
 
 @app.get("/api/standards")
