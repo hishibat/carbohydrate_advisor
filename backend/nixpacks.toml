@@ -1,11 +1,16 @@
 # Nixpacks configuration for Railway
 # https://nixpacks.com/docs/configuration/file
+# Updated: 2026-01-29 - Force rebuild with new google-genai SDK
 
 [phases.setup]
 nixPkgs = ["python311", "pip"]
 
 [phases.install]
-cmds = ["python -m pip install -r requirements.txt"]
+# Force reinstall all packages to ensure new google-genai is used
+cmds = [
+    "python -m pip install --upgrade pip",
+    "python -m pip install --no-cache-dir -r requirements.txt"
+]
 
 [start]
 cmd = "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
