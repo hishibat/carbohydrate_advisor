@@ -45,6 +45,8 @@ export default function Home() {
     formData.append('file', file)
 
     try {
+      console.log("Attempting to fetch:", `${API_URL}/api/analyze`)
+
       const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         body: formData,
@@ -58,7 +60,19 @@ export default function Home() {
       const data: NutritionData = await response.json()
       setNutrition(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました')
+      console.error("Fetch error details:", err)
+
+      // ネットワークエラーの詳細診断
+      let errorMessage = '予期せぬエラーが発生しました'
+      if (err instanceof TypeError && err.message === 'Load failed') {
+        errorMessage = `APIへの接続に失敗しました。\n\n接続先URL: ${API_URL}/api/analyze\n\n考えられる原因:\n• バックエンドサーバーが起動していない\n• NEXT_PUBLIC_API_URLが正しく設定されていない\n• CORSエラー`
+      } else if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        errorMessage = `ネットワークエラー: APIに接続できません。\n\n接続先URL: ${API_URL}/api/analyze\n\n現在の環境変数: NEXT_PUBLIC_API_URL = ${process.env.NEXT_PUBLIC_API_URL || '(未設定)'}`
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+
+      setError(errorMessage)
       setNutrition(null)
     } finally {
       setIsLoading(false)
@@ -112,7 +126,7 @@ export default function Home() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           <p className="font-medium">エラー</p>
-          <p>{error}</p>
+          <pre className="whitespace-pre-wrap text-sm mt-2">{error}</pre>
         </div>
       )}
 
