@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from PIL import Image, ImageOps
 import io
 import json
@@ -46,9 +47,10 @@ class NutritionAnalyzer:
     """Gemini APIを使用した栄養素分析サービス"""
 
     def __init__(self, api_key: str):
-        genai.configure(api_key=api_key)
-        # gemini-1.5-flash: 高速で画像認識に対応した安定版モデル
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+        # 新しいgoogle-genai SDKを使用
+        self.client = genai.Client(api_key=api_key)
+        # gemini-2.5-flash: 高速で画像認識に対応した最新モデル
+        self.model_name = "gemini-2.5-flash"
 
     async def analyze_image(self, image_data: bytes) -> NutritionData:
         """
@@ -133,10 +135,26 @@ detected_foodsの説明:
 """
 
         # クリーンな画像（EXIF除去済み）をGeminiに送信
-        response = self.model.generate_content([prompt, clean_image])
-        logger.debug(f"Gemini raw response: {response.text[:500]}...")
+        # 画像をバイトデータに変換
+        clean_buffer.seek(0)
+        image_bytes = clean_buffer.read()
 
-        return self._parse_response(response.text)
+        # 新しいSDKのAPIを使用
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=[
+                types.Content(
+                    parts=[
+                        types.Part.from_text(text=prompt),
+                        types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+                    ]
+                )
+            ]
+        )
+        response_text = response.text
+        logger.debug(f"Gemini raw response: {response_text[:500]}...")
+
+        return self._parse_response(response_text)
 
     def _parse_response(self, response_text: str) -> NutritionData:
         """
